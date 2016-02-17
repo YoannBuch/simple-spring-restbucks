@@ -32,8 +32,6 @@ public class Order {
 		this.id = id;
 	}
 
-	// Important: we don't want internal ids to leak into the client
-	@JsonIgnore
 	public String getId() {
 		return id;
 	}
@@ -76,6 +74,8 @@ public class Order {
 		PAYMENT_EXPECTED,
 
 		PREPARING
+		
+		// READY, TAKEN...
 	}
 
 	@Override

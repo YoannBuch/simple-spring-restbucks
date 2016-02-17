@@ -1,8 +1,14 @@
 package simple.restbucks.order.web;
 
+import static org.springframework.hateoas.mvc.ControllerLinkBuilder.linkTo;
+import static org.springframework.hateoas.mvc.ControllerLinkBuilder.methodOn;
+
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.Link;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,9 +18,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import simple.restbucks.order.CreditCardNumber;
 import simple.restbucks.order.Order;
 import simple.restbucks.order.OrderRepository;
-import simple.restbucks.order.CreditCardNumber;
 
 @RestController
 @RequestMapping(path = "/orders")
@@ -26,30 +32,45 @@ public class OrderController {
 	public OrderController(OrderRepository orderRepository) {
 		this.orderRepository = orderRepository;
 	}
+	
+	@RequestMapping(method = RequestMethod.GET)
+	public ResponseEntity<List<OrderResource>> findAll() {
+		
+		List<OrderResource> resources = new ArrayList<>();
+		for (Order order : orderRepository.readAll()) {
+			resources.add(createOrderResource(order));
+		};
+		
+		return new ResponseEntity<List<OrderResource>>(resources, HttpStatus.OK);
+	}
 
 	@RequestMapping(method = RequestMethod.POST)
-	public ResponseEntity<Order> createOrder(@RequestBody Order order) {
+	public ResponseEntity<OrderResource> createOrder(@RequestBody Order order) {
 		order = orderRepository.create(order);
 
 		HttpHeaders httpHeaders = new HttpHeaders();
 
-		String location = String.format("http://localhost:8080/orders/%s", order.getId());
+		Link selfLink = createSelfLink(order.getId());
 
-		httpHeaders.setLocation(URI.create(location));
-
-		return new ResponseEntity<>(order, httpHeaders, HttpStatus.CREATED);
+		httpHeaders.setLocation(URI.create(selfLink.getHref()));
+		
+		OrderResource orderResource = createOrderResource(order);
+		
+		return new ResponseEntity<>(orderResource, httpHeaders, HttpStatus.CREATED);
 	}
 
 	@RequestMapping(method = RequestMethod.GET, path = "/{orderId}")
-	public ResponseEntity<Order> getOrder(@PathVariable String orderId) {
+	public ResponseEntity<OrderResource> getOrder(@PathVariable String orderId) {
 
 		Order order = orderRepository.findOne(orderId);
 		
 		if (order == null) {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
+		
+		OrderResource orderResource = createOrderResource(order);
 
-		return new ResponseEntity<>(order, HttpStatus.OK);
+		return new ResponseEntity<>(orderResource, HttpStatus.OK);
 	}
 
 	@RequestMapping(method = RequestMethod.DELETE, path = "/{orderId}")
@@ -70,8 +91,8 @@ public class OrderController {
 		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 	}
 	
-	@RequestMapping(method = RequestMethod.POST, path = "/{orderId}/payment")
-	public ResponseEntity<Order> payOrder(@PathVariable String orderId, @RequestBody CreditCardNumber number) {
+	@RequestMapping(method = RequestMethod.PUT, path = "/{orderId}/payment")
+	public ResponseEntity<OrderResource> payOrder(@PathVariable String orderId, @RequestBody CreditCardNumber number) {
 
 		Order order = orderRepository.findOne(orderId);
 		
@@ -82,7 +103,34 @@ public class OrderController {
 		// We assume given credit card number leads to a successful payment
 		order.markAsPaid();
 		orderRepository.update(order);
+		
+		OrderResource orderResource = createOrderResource(order);
 
-		return new ResponseEntity<>(order, HttpStatus.CREATED);
+		return new ResponseEntity<>(orderResource, HttpStatus.CREATED);
+	}
+	
+	private OrderResource createOrderResource(Order order) {
+		OrderResource orderResource = new OrderResource(order.getItems(), order.getStatus(), order.getPrice());
+		
+		orderResource.add(createSelfLink(order.getId()));
+		
+		if (!order.isPaid()) {
+			orderResource.add(createCancelLink(order.getId()));
+			orderResource.add(createPaymentLink(order.getId()));
+		}
+		
+		return orderResource;
+	}
+	
+	private Link createSelfLink(String orderId) {
+		return linkTo(methodOn(OrderController.class).getOrder(orderId)).withSelfRel();
+	}
+	
+	private Link createCancelLink(String orderId) {
+		return linkTo(methodOn(OrderController.class).cancelOrder(orderId)).withRel("cancel");
+	}
+	
+	private Link createPaymentLink(String orderId) {
+		return linkTo(methodOn(OrderController.class).payOrder(orderId, null)).withRel("payment");
 	}
 }

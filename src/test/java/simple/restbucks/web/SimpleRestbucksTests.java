@@ -5,7 +5,9 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.nio.file.Files;
@@ -16,6 +18,9 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.SpringApplicationConfiguration;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.hateoas.Link;
+import org.springframework.hateoas.LinkDiscoverer;
+import org.springframework.hateoas.hal.HalLinkDiscoverer;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -43,7 +48,7 @@ public class SimpleRestbucksTests {
 	@Test
 	public void cancelOrderBeforePayment() throws Exception {
 
-		String orderResourceUrl = createOrder();
+		MockHttpServletResponse orderResourceUrl = createOrder();
 
 		cancelOrder(orderResourceUrl);
 	}
@@ -51,58 +56,86 @@ public class SimpleRestbucksTests {
 	@Test
 	public void payOrder() throws Exception {
 
-		String orderResourceUrl = createOrder();
+		MockHttpServletResponse reponse = createOrder();
 
-		payOrder(orderResourceUrl);
+		payOrder(reponse);
 	}
 
-	private String createOrder() throws Exception {
+	private MockHttpServletResponse createOrder() throws Exception {
 
 		ClassPathResource resource = new ClassPathResource("order.json");
 		byte[] data = Files.readAllBytes(resource.getFile().toPath());
 		
-		// PROBLEM: "/orders" is hard-coded
-
-		MockHttpServletResponse response = mvc.perform(post("/orders").contentType(MediaType.APPLICATION_JSON).content(data)). //
+		MockHttpServletResponse response =  mvc.perform(post("/orders").contentType(MediaType.APPLICATION_JSON).content(data)). //
 				andDo(MockMvcResultHandlers.print()). //
 				andExpect(status().isCreated()). //
 				andExpect(header().string("Location", is(notNullValue()))). //
+				andExpect(jsonPath("_links.self").exists()). // 
+				andExpect(jsonPath("_links.payment").exists()). // 
+				andExpect(jsonPath("_links.cancel").exists()). //
 				andReturn().getResponse();
 		
-		String orderResourceUrl = response.getRedirectedUrl();
+		Link selfLink = findLink("self", response);	
 		
-		mvc.perform(get(orderResourceUrl)). //
+		// Make sure we can get it
+		response =  mvc.perform(get(selfLink.getHref())). //
 			andDo(MockMvcResultHandlers.print()). //
-			andExpect(status().isOk());
+			andExpect(status().isOk()). //
+			andExpect(jsonPath("_links.self").exists()). // 
+			andExpect(jsonPath("_links.payment").exists()). // 
+			andExpect(jsonPath("_links.cancel").exists()). //
+			andReturn().getResponse();
 		
-		return orderResourceUrl;
+		return response;
 	}
 
-	private void cancelOrder(String orderResourceUrl) throws Exception {
+	private void cancelOrder(MockHttpServletResponse getOrderResponse) throws Exception {
 
-		mvc.perform(delete(orderResourceUrl)). //
+		Link cancelLink = findLink("cancel", getOrderResponse);
+
+		mvc.perform(delete(cancelLink.getHref())). //
 				andDo(MockMvcResultHandlers.print()). //
-				andExpect(status().isNoContent()). //
-				andReturn().getResponse();
+				andExpect(status().isNoContent());
 
-		mvc.perform(get(orderResourceUrl)). //
+		Link selfLink = findLink("self", getOrderResponse);
+		
+		// Make sure order is gone
+		mvc.perform(get(selfLink.getHref())). //
 			andDo(MockMvcResultHandlers.print()). //
 			andExpect(status().isNotFound());
 	}
 
-	private void payOrder(String orderResourceUrl) throws Exception {
+	private void payOrder(MockHttpServletResponse getOrderResponse) throws Exception {
 
-		// PROBLEM: "/orders/1/payment" is hard-coded
-		
-		String paymentUrl = String.format("%s/payment", orderResourceUrl);
+		Link paymentLink = findLink("payment", getOrderResponse);
 
-		mvc.perform(post(paymentUrl).contentType(MediaType.APPLICATION_JSON).content("\"1234123412341234\"")). //
+		MockHttpServletResponse paymentResponse = mvc.perform(put(paymentLink.getHref()).contentType(MediaType.APPLICATION_JSON).content("\"1234123412341234\"")). //
 				andDo(MockMvcResultHandlers.print()). //
 				andExpect(status().isCreated()). //
+				andExpect(jsonPath("_links.self").exists()). //
+				andExpect(jsonPath("_links.payment").doesNotExist()). // 
+				andExpect(jsonPath("_links.cancel").doesNotExist()). //
 				andReturn().getResponse();
 		
+		Link canceLink = findLink("cancel", getOrderResponse);
+		
 		// Make sure the order can't be canceled once it's paid
-		mvc.perform(delete(orderResourceUrl)). //
+		mvc.perform(delete(canceLink.getHref())). //
 			andExpect(status().isMethodNotAllowed());
+		
+		Link selfLink = findLink("self", paymentResponse); 
+		
+		// Make sure no links exist to cancel or pay
+		mvc.perform(get(selfLink.getHref())). //
+				andDo(MockMvcResultHandlers.print()). //
+				andExpect(status().isOk()). //
+				andExpect(jsonPath("_links.self").exists()). // 
+				andExpect(jsonPath("_links.payment").doesNotExist()). // 
+				andExpect(jsonPath("_links.cancel").doesNotExist());
+	}
+	
+	private Link findLink(String relationName, MockHttpServletResponse response) throws Exception {
+		LinkDiscoverer discoverer = new HalLinkDiscoverer();
+		return discoverer.findLinkWithRel(relationName, response.getContentAsString());		
 	}
 }
