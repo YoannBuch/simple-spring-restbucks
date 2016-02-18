@@ -70,7 +70,7 @@ public class OrderController {
 		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 	}
 	
-	@RequestMapping(method = RequestMethod.POST, path = "/{orderId}/payment")
+	@RequestMapping(method = RequestMethod.PUT, path = "/{orderId}/payment")
 	public ResponseEntity<Order> payOrder(@PathVariable String orderId, @RequestBody CreditCardNumber number) {
 
 		Order order = orderRepository.findOne(orderId);

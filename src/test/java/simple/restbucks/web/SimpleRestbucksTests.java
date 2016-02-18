@@ -5,6 +5,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -96,7 +97,7 @@ public class SimpleRestbucksTests {
 		
 		String paymentUrl = String.format("%s/payment", orderResourceUrl);
 
-		mvc.perform(post(paymentUrl).contentType(MediaType.APPLICATION_JSON).content("\"1234123412341234\"")). //
+		mvc.perform(put(paymentUrl).contentType(MediaType.APPLICATION_JSON).content("\"1234123412341234\"")). //
 				andDo(MockMvcResultHandlers.print()). //
 				andExpect(status().isCreated()). //
 				andReturn().getResponse();
