@@ -42,7 +42,7 @@ public class HALClientTest {
 
 	private static String CANCEL_REL = "cancel";
 
-	private RestTemplate template;
+	private RestTemplate restTemplate;
 
 	@Before
 	public void before() {
@@ -57,7 +57,7 @@ public class HALClientTest {
 		List<HttpMessageConverter<?>> converters = new ArrayList<>();
 		converters.add(converter);
 
-		template = new RestTemplate(converters);
+		restTemplate = new RestTemplate(converters);
 	}
 
 	@Test
@@ -68,11 +68,11 @@ public class HALClientTest {
 		// but it only supports GET method.
 
 		// #1 Get root resource
-		Resource<?> rootResource = template.getForObject(API_ENTRY_POINT, Resource.class);
+		Resource<?> rootResource = restTemplate.getForObject(API_ENTRY_POINT, Resource.class);
 
 		// #2 Create order
 		Order newOrder = createOrder();
-		URI newOrderURI = template.postForLocation(rootResource.getLink(ORDERS_REL).getHref(), newOrder);
+		URI newOrderURI = restTemplate.postForLocation(rootResource.getLink(ORDERS_REL).getHref(), newOrder);
 
 		// #3 Get order
 		Resource<Order> orderResource = getOrder(newOrderURI).getBody();
@@ -80,7 +80,7 @@ public class HALClientTest {
 		// #4 Cancel order if it's possible
 		if (orderResource.hasLink(CANCEL_REL)) {
 			
-			template.delete(orderResource.getLink(CANCEL_REL).getHref());
+			restTemplate.delete(orderResource.getLink(CANCEL_REL).getHref());
 
 			try {
 				getOrder(newOrderURI);
@@ -97,7 +97,7 @@ public class HALClientTest {
 
 	private ResponseEntity<Resource<Order>> getOrder(URI orderURI) {
 
-		ResponseEntity<Resource<Order>> getOrderResponse = template.exchange(orderURI, HttpMethod.GET, null,
+		ResponseEntity<Resource<Order>> getOrderResponse = restTemplate.exchange(orderURI, HttpMethod.GET, null,
 				new ParameterizedTypeReference<Resource<Order>>() {
 				});
 
