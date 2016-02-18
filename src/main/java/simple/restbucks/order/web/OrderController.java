@@ -40,7 +40,6 @@ public class OrderController {
 		for (Order order : orderRepository.readAll()) {
 			resources.add(createOrderResource(order));
 		}
-		;
 
 		return new ResponseEntity<List<OrderResource>>(resources, HttpStatus.OK);
 	}

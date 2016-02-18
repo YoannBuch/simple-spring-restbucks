@@ -22,6 +22,7 @@ public class OrderRepository {
 
 		Order javaChipOrder = new Order(javaChip);
 		Order cappuchinoOrder = new Order(cappuchino);
+		cappuchinoOrder.markAsPaid();
 
 		create(javaChipOrder);
 		create(cappuchinoOrder);
