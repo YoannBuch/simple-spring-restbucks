@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import simple.restbucks.order.Order;
 import simple.restbucks.order.OrderRepository;
-import simple.restbucks.order.CreditCardNumber;
+import simple.restbucks.order.Payment;
 
 @RestController
 @RequestMapping(path = "/orders")
@@ -71,7 +71,7 @@ public class OrderController {
 	}
 	
 	@RequestMapping(method = RequestMethod.PUT, path = "/{orderId}/payment")
-	public ResponseEntity<Order> payOrder(@PathVariable String orderId, @RequestBody CreditCardNumber number) {
+	public ResponseEntity<Payment> payOrder(@PathVariable String orderId, @RequestBody Payment payment) {
 
 		Order order = orderRepository.findOne(orderId);
 		
@@ -79,10 +79,10 @@ public class OrderController {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 		
-		// We assume given credit card number leads to a successful payment
+		// We assume the payment is successful
 		order.markAsPaid();
 		orderRepository.update(order);
 
-		return new ResponseEntity<>(order, HttpStatus.CREATED);
+		return new ResponseEntity<>(payment, HttpStatus.CREATED);
 	}
 }
