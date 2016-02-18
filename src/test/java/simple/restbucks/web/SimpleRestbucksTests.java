@@ -57,7 +57,7 @@ public class SimpleRestbucksTests {
 
 	@Test
 	public void payOrder() throws Exception {
-		
+
 		MockHttpServletResponse rootResourceResponse = getRootResource();
 
 		MockHttpServletResponse orderResponse = createOrder(rootResourceResponse);
@@ -75,7 +75,7 @@ public class SimpleRestbucksTests {
 	}
 
 	private MockHttpServletResponse createOrder(MockHttpServletResponse rootResourceResponse) throws Exception {
-		
+
 		Link ordersLink = findLink("orders", rootResourceResponse);
 
 		ClassPathResource resource = new ClassPathResource("order.json");
@@ -91,9 +91,9 @@ public class SimpleRestbucksTests {
 				andExpect(jsonPath("_links.cancel").exists()). //
 				andReturn().getResponse();
 
-		Link selfLink = findLink("self", response);
-
 		// Make sure we can get it
+		Link selfLink = findLink("self", response);
+		
 		response = mvc.perform(get(selfLink.getHref())). //
 				andDo(MockMvcResultHandlers.print()). //
 				andExpect(status().isOk()). //
@@ -113,9 +113,9 @@ public class SimpleRestbucksTests {
 				andDo(MockMvcResultHandlers.print()). //
 				andExpect(status().isNoContent());
 
-		Link selfLink = findLink("self", orderResponse);
-
 		// Make sure order is gone
+		Link selfLink = findLink("self", orderResponse);
+		
 		mvc.perform(get(selfLink.getHref())). //
 				andDo(MockMvcResultHandlers.print()). //
 				andExpect(status().isNotFound());
@@ -124,33 +124,31 @@ public class SimpleRestbucksTests {
 	private void payOrder(MockHttpServletResponse orderResponse) throws Exception {
 
 		Link paymentLink = findLink("payment", orderResponse);
-
-		MockHttpServletResponse paymentResponse = mvc
-				.perform(put(paymentLink.getHref()).contentType(MediaType.APPLICATION_JSON)
-						.content("\"1234123412341234\""))
-				. //
-				andDo(MockMvcResultHandlers.print()). //
-				andExpect(status().isCreated()). //
-				andExpect(jsonPath("_links.self").exists()). //
-				andExpect(jsonPath("_links.payment").doesNotExist()). //
-				andExpect(jsonPath("_links.cancel").doesNotExist()). //
-				andReturn().getResponse();
-
 		Link canceLink = findLink("cancel", orderResponse);
 
-		// Make sure the order can't be canceled once it's paid
-		mvc.perform(delete(canceLink.getHref())). //
-				andExpect(status().isMethodNotAllowed());
-
-		Link selfLink = findLink("self", paymentResponse);
-
+		MockHttpServletResponse paymentResponse = mvc
+				.perform(put(paymentLink.getHref()).contentType(MediaType.APPLICATION_JSON) //
+						.content("\"1234123412341234\"")). //
+				andDo(MockMvcResultHandlers.print()). //
+				andExpect(status().isCreated()). //
+				andExpect(jsonPath("_links.order").exists()). //
+				andExpect(jsonPath("_links.receipt").exists()). //
+				andReturn().getResponse();
+		
 		// Make sure no links exist to cancel or pay
-		mvc.perform(get(selfLink.getHref())). //
+		Link orderLink = findLink("order", paymentResponse);
+		
+		orderResponse = mvc.perform(get(orderLink.getHref())). //
 				andDo(MockMvcResultHandlers.print()). //
 				andExpect(status().isOk()). //
 				andExpect(jsonPath("_links.self").exists()). //
 				andExpect(jsonPath("_links.payment").doesNotExist()). //
-				andExpect(jsonPath("_links.cancel").doesNotExist());
+				andExpect(jsonPath("_links.cancel").doesNotExist()). //
+				andReturn().getResponse();
+		
+		// Make sure the order can't be canceled once it's paid
+		mvc.perform(delete(canceLink.getHref())). //
+				andExpect(status().isMethodNotAllowed());
 	}
 
 	private Link findLink(String relationName, MockHttpServletResponse response) throws Exception {
