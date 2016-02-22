@@ -23,10 +23,10 @@ public class RootController {
 		ResourceSupport rootResource = new ResourceSupport();
 		
 		Link orderLink = linkTo(OrderController.class).withRel("orders");
-		rootResource.add(orderLink);
-		
+
 		Link menuLink = linkTo(MenuController.class).withRel("menu");
-		rootResource.add(menuLink);
+				
+		rootResource.add(orderLink, menuLink);
 		
 		return new ResponseEntity<>(rootResource, HttpStatus.OK);
 	}

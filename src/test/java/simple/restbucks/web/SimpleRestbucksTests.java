@@ -152,7 +152,9 @@ public class SimpleRestbucksTests {
 	}
 
 	private Link findLink(String relationName, MockHttpServletResponse response) throws Exception {
+		
 		LinkDiscoverer discoverer = new HalLinkDiscoverer();
+		
 		return discoverer.findLinkWithRel(relationName, response.getContentAsString());
 	}
 }
