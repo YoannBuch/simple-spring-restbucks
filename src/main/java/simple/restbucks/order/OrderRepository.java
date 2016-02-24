@@ -1,5 +1,6 @@
 package simple.restbucks.order;
 
+import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -49,5 +50,9 @@ public class OrderRepository {
 
 	private String nextId() {
 		return String.valueOf(currentId.incrementAndGet());
+	}
+
+	public Collection<Order> readAll() {
+		return orders.values();
 	}
 }

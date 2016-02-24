@@ -1,6 +1,8 @@
 package simple.restbucks.order.web;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -25,6 +27,15 @@ public class OrderController {
 	@Autowired
 	public OrderController(OrderRepository orderRepository) {
 		this.orderRepository = orderRepository;
+	}
+	
+	@RequestMapping(method = RequestMethod.GET)
+	public ResponseEntity<List<Order>> findAll() {
+		List<Order> orders = new ArrayList<>();
+		for (Order order : orderRepository.readAll()) {
+			orders.add(order);
+		}
+		return new ResponseEntity<List<Order>>(orders, HttpStatus.OK);
 	}
 
 	@RequestMapping(method = RequestMethod.POST)
